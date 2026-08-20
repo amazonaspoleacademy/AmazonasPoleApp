@@ -70,15 +70,16 @@ function login(){
   Amazonas Pole Academy
 </div>
 <div class="seg"><button class="active" data-role="student">Estudiante</button><button data-role="owner">Administrador</button><button data-role="teacher">Instructor/a</button></div><form id="loginForm" class="form"><label>Email<input id="email" type="email" value="" required></label><label>Contraseña<input id="pass" type="password" value="" required></label><button class="btn primary">Ingresar</button></form></div></div></section></div>`;
- let role='student';$$('.seg button').forEach(b=>b.onclick=()=>{$$('.seg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');role=b.dataset.role;$('#email').value=role==='owner'?'':role==='teacher'?'':'fbalbouze@gmail.com'});
+ let role='student';$$('.seg button').forEach(b=>b.onclick=()=>{$$('.seg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');role=b.dataset.role;$('#email').value='';$('#pass').value=''});
  $('#loginForm').onsubmit=e=>{
   e.preventDefault();
   let email=$('#email').value.trim().toLowerCase();
   let pass=$('#pass').value;
 
-  // Acceso Administrador fijo y autorreparable
-  if(role==='owner' && email==='amazonaspoleacademy@gmail.com' && pass==='prueba123'){
-    let u=db.users.find(x=>x.id==='o1'||x.role==='owner');
+  // Acceso Administrador fijo y autorreparable.
+  // No depende del selector de rol: estas credenciales siempre abren Administrador.
+  if(email==='amazonaspoleacademy@gmail.com' && pass==='prueba123'){
+    let u=db.users.find(x=>x.id==='o1') || db.users.find(x=>x.role==='owner');
     if(!u){
       u={id:'o1',role:'owner',name:'Fabiola',last:'Balbouze',email:'amazonaspoleacademy@gmail.com',pass:'prueba123',phone:'',credits:0};
       db.users.push(u);
