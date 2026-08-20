@@ -36,7 +36,23 @@ const seed={
  attendance:[]
 };
 let db=load(), session=JSON.parse(localStorage.getItem('amazonas_session')||'null'), current='home', day='Lunes';
-function load(){try{return JSON.parse(localStorage.getItem(LS))||structuredClone(seed)}catch(e){return structuredClone(seed)}}
+function load(){
+  try{
+    let data=JSON.parse(localStorage.getItem(LS))||structuredClone(seed);
+
+    // Migración: actualizar credenciales del Administrador existente
+    let admin=data.users?.find(u=>u.id==='o1'||u.role==='owner');
+    if(admin){
+      admin.email='amazonaspoleacademy@gmail.com';
+      admin.pass='prueba123';
+    }
+
+    localStorage.setItem(LS,JSON.stringify(data));
+    return data;
+  }catch(e){
+    return structuredClone(seed);
+  }
+}
 function save(){localStorage.setItem(LS,JSON.stringify(db))}
 function toast(msg){let t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.append(t);setTimeout(()=>t.remove(),2600)}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
