@@ -55,9 +55,19 @@ function login(){
 </div>
 <div class="seg"><button class="active" data-role="student">Estudiante</button><button data-role="owner">Administrador</button><button data-role="teacher">Instructor/a</button></div><form id="loginForm" class="form"><label>Email<input id="email" type="email" value="" required></label><label>Contraseña<input id="pass" type="password" value="" required></label><button class="btn primary">Ingresar</button></form></div></div></section></div>`;
  let role='student';$$('.seg button').forEach(b=>b.onclick=()=>{$$('.seg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');role=b.dataset.role;$('#email').value=role==='owner'?'':role==='teacher'?'':'fbalbouze@gmail.com'});
- $('#loginForm').onsubmit=e=>{e.preventDefault();let u=db.users.find(x=>x.email.toLowerCase()===$('#email').value.toLowerCase()&&x.pass===$('#pass').value&&x.role===role);if(!u)return toast('Credenciales incorrectas para ese rol');session={userId:u.id,role:u.role};localStorage.setItem('amazonas_session',JSON.stringify(session));current=u.role==='student'?'home':u.role==='owner'?'owner':'teacher';render()};
+ $('#loginForm').onsubmit=e=>{
+  e.preventDefault();
+  let email=$('#email').value.trim().toLowerCase();
+  let pass=$('#pass').value;
+  let u=db.users.find(x=>String(x.email||'').trim().toLowerCase()===email&&String(x.pass||'')===pass&&x.role===role);
+  if(!u)return toast('Credenciales incorrectas para ese rol');
+  session={userId:u.id,role:u.role};
+  localStorage.setItem('amazonas_session',JSON.stringify(session));
+  current=u.role==='student'?'home':u.role==='owner'?'owner':'teacher';
+  render();
+};
 }
-function shell(){let u=me();let items=navItems(u.role);return `<div class="app"><header class="top"><div class="topin"><div class="brand"><div class="mark">A</div><span>Amazonas Pole Academy</span></div><div class="spacer"></div><span class="pill">${u.role==='owner'?'Panel administrador':u.role==='teacher'?'Panel instructor/asora':'Hola, '+esc(u.name)}</span><button class="btn ghost" id="logout">Salir</button></div></header><div class="layout"><aside class="side">${items.map(i=>`<button class="navbtn ${current===i[0]?'active':''}" data-nav="${i[0]}">${i[1]}</button>`).join('')}</aside><main class="content" id="page"></main></div><nav class="mobilebar">${items.slice(0,5).map(i=>`<button class="${current===i[0]?'active':''}" data-nav="${i[0]}">${i[1]}</button>`).join('')}</nav></div>`}
+function shell(){let u=me();let items=navItems(u.role);return `<div class="app"><header class="top"><div class="topin"><div class="brand"><div class="mark">A</div><span>Amazonas Pole Academy</span></div><div class="spacer"></div><span class="pill">${u.role==='owner'?'Panel administrador':u.role==='teacher'?'Panel Instructor/a':'Hola, '+esc(u.name)}</span><button class="btn ghost" id="logout">Salir</button></div></header><div class="layout"><aside class="side">${items.map(i=>`<button class="navbtn ${current===i[0]?'active':''}" data-nav="${i[0]}">${i[1]}</button>`).join('')}</aside><main class="content" id="page"></main></div><nav class="mobilebar">${items.slice(0,5).map(i=>`<button class="${current===i[0]?'active':''}" data-nav="${i[0]}">${i[1]}</button>`).join('')}</nav></div>`}
 function bindNav(){$$('[data-nav]').forEach(b=>b.onclick=()=>{current=b.dataset.nav;renderPage()});$('#logout').onclick=()=>{session=null;localStorage.removeItem('amazonas_session');login()}}
 function render(){if(!session||!me())return login();document.getElementById('root').innerHTML=shell();bindNav();renderPage()}
 function renderPage(){let p=$('#page');if(!p)return;let role=me().role;let fn=pages[current]||pages[role==='owner'?'owner':role==='teacher'?'teacher':'home'];p.innerHTML=fn();bindPage();$$('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===current))}
@@ -526,6 +536,7 @@ function teacherModal(teacherId=null){
   let editing=!!teacherId;
   let t=editing?db.teachers.find(x=>x.id===teacherId):null;
   let u=editing?db.users.find(x=>x.id===teacherId&&x.role==='teacher'):null;
+  let hasAccess=!!(u&&u.email&&u.pass);
 
   let m=modal(`
     <div class="sectionhead">
@@ -579,9 +590,11 @@ function teacherModal(teacherId=null){
         <input id="tInstagram" value="${esc(u?.instagram||'')}" placeholder="@usuario">
       </label>
 
-      <label>${editing?'Nueva contraseña (dejá vacío para conservar la actual)':'Contraseña inicial'}
-        <input id="tPass" type="password" ${editing?'':'required'}>
+      <label>${editing?(hasAccess?'Nueva contraseña (dejá vacío para conservar la actual)':'Contraseña inicial para habilitar el acceso'):'Contraseña inicial'}
+        <input id="tPass" type="password" ${(!editing||!hasAccess)?'required':''}>
       </label>
+
+      ${editing&&!hasAccess?`<div class="notice">Este/a instructor/a todavía no tiene una cuenta de acceso. Completá email y contraseña para habilitar su inicio de sesión.</div>`:''}
 
       <button class="btn primary">${editing?'Guardar cambios':'Registrar Instructor/a'}</button>
     </form>
@@ -606,13 +619,14 @@ function teacherModal(teacherId=null){
       t.role='Instructor/a';
 
       if(!u){
+        if(!pass)return toast('Asigná una contraseña inicial para habilitar el acceso');
         u={
           id:teacherId,
           role:'teacher',
           name:parts.name,
           last:parts.last,
           email,
-          pass:pass||'',
+          pass,
           phone:'',
           credits:0
         };
@@ -691,7 +705,8 @@ function viewTeacherModal(teacherId){
       <div class="item"><span>Contacto de emergencia</span><b>${esc(u?.emergencyName||'—')} ${u?.emergencyPhone?`· ${esc(u.emergencyPhone)}`:''}</b></div>
       <div class="item"><span>Disciplina</span><b>${esc(t.disc||'—')}</b></div>
       <div class="item"><span>Instagram</span><b>${esc(u?.instagram||'—')}</b></div>
-      <div class="item"><span>Acceso</span><b>${u?.email?'Habilitado':'Sin cuenta de acceso'}</b></div>
+      <div class="item"><span>Acceso</span><b>${u?.email&&u?.pass?'Habilitado':'Sin cuenta de acceso'}</b></div>
+      <div class="item"><span>Email de acceso</span><b>${esc(u?.email||'—')}</b></div>
     </div>
 
     ${teacherId!=='o1'?`<div class="actions" style="margin-top:16px"><button class="btn primary" id="editTeacherFromView">Editar Instructor/a</button></div>`:''}
