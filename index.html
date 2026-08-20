@@ -1,7 +1,5 @@
 <!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8" />
+<html lang="es">capacity:()=>`<div class="sectionhead"
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>Amazonas Pole Academy — App</title>
 <style>
@@ -18,7 +16,7 @@ const LS='amazonas_app_v1';
 const seed={
  studio:{name:'Amazonas Pole Academy',alias:'amazonas.pole.mp',cbu:'0000003100070XXXXXX772',owner:'Amazonas Pole Academy',whatsapp:'+54 9 11 2610-6002',instagram:'@amazonaspoleacademy',facebook:'Amazonas Pole Academy',tiktok:'@amazonaspoleacademy',address:'Balvanera, CABA',hours:'Lun a sáb · consultar horarios'},
  users:[
-  {id:'u1',role:'student',name:'Fabiola',last:'Balbouze',email:'fbalbouze@gmail.com',pass:'prueba123',phone:'11 2610 6002',credits:5,plan:'Abono 8 clases',expires:'2026-09-05'},
+  {id:'u1',role:'student',name:'Fabiola',last:'Balbouze',email:'fbalbouzecgmail.com',pass:'prueba123',phone:'11 2610 6002',credits:5,plan:'Abono 8 clases',expires:'2026-09-05'},
   {id:'o1',role:'owner',name:'Fabiola',last:'Balbouze',email:'',pass:'demo123',phone:'',credits:0},
   {id:'t1',role:'teacher',name:'Lara',last:'',email:'lara@amazonas.demo',pass:'demo123',phone:'',credits:0}
  ],
@@ -69,8 +67,45 @@ const pages={
  transfer:()=>`<div class="sectionhead"><div><div class="eyebrow">Transferencia</div><h2>Datos de pago</h2></div></div><div class="card" style="max-width:650px"><div class="list"><div class="item"><span>Alias</span><b>${esc(db.studio.alias)}</b></div><div class="item"><span>CBU</span><b>${esc(db.studio.cbu)}</b></div><div class="item"><span>Titular</span><b>${esc(db.studio.owner)}</b></div></div><p class="notice" style="margin-top:14px">Después de transferir, registrá el pago en <b>Abonos y Pagos</b> y adjuntá el comprobante.</p></div>`,
  owner:()=>`<div class="sectionhead"><div><div class="eyebrow">Panel Dueña</div><h2>Buen día, ${esc(me().name)} ✨</h2></div></div><div class="grid g3"><div class="card"><div class="stat">${db.payments.filter(p=>p.status==='pending').length}</div><div class="muted">Pagos por aprobar</div></div><div class="card"><div class="stat">${db.reservations.filter(r=>r.status==='confirmed').length}</div><div class="muted">Reservas activas</div></div><div class="card"><div class="stat">${db.users.filter(u=>u.role==='student').length}</div><div class="muted">Alumnas registradas</div></div></div><div class="grid g2" style="margin-top:16px">${[['approve','Aprobar pagos','Validá transferencias y activá abonos'],['capacity','Cupos por clase','Reservas y disponibilidad'],['manage','Gestionar horarios','Clases, profes y cupos'],['scan','Escanear QR','Registrar asistencia'],['students','Alumnas','Cuentas y abonos'],['publish','Enviar novedad','Avisos a las alumnas']].map(x=>`<button class="card" data-nav="${x[0]}" style="text-align:left;cursor:pointer"><h3>${x[1]}</h3><p class="muted">${x[2]}</p></button>`).join('')}</div>`,
  approve:()=>`<div class="sectionhead"><div><div class="eyebrow">Administración</div><h2>Aprobar pagos</h2></div></div><div class="list">${db.payments.filter(p=>p.status==='pending').map(p=>{let u=db.users.find(x=>x.id===p.userId);return `<div class="item"><div><b>${esc(u?.name||'Alumna')} ${esc(u?.last||'')}</b><div>${esc(p.plan)} · ${money(p.amount)} · ${esc(p.method)}</div>${p.receipt?`<small><a href="${p.receipt}" target="_blank">Ver comprobante</a></small>`:'<small class="muted">Sin comprobante</small>'}</div><div class="actions"><button class="btn ok" data-approve="${p.id}">Aprobar</button><button class="btn bad" data-reject="${p.id}">Rechazar</button></div></div>`}).join('')||'<div class="empty">No hay pagos pendientes.</div>'}</div>`,
- capacity:()=>`<div class="sectionhead"><div><div class="eyebrow">Cupos</div><h2>Cupos por clase</h2></div></div><div class="schedule">${db.classes.filter(c=>c.active).map(c=>{let n=countClass(c.id);return `<div class="classrow"><div class="time">${c.time}</div><div><b>${c.day} · ${esc(c.activity)}</b><div class="muted">${esc(c.teacher)} · ${n}/${c.capacity}</div><div class="progress" style="margin-top:8px"><span style="width:${Math.min(100,n/c.capacity*100)}%"></span></div></div><span class="badge ${n>=c.capacity?'bad':'ok'}">${n>=c.capacity?'Lleno':c.capacity-n+' libres'}</span></div>`}).join('')}</div>`,
- manage:()=>`<div class="sectionhead"><div><div class="eyebrow">Horarios</div><h2>Gestionar horarios</h2></div><button class="btn primary" id="newClass">Nueva clase</button></div><div class="tablewrap"><table><thead><tr><th>Día</th><th>Hora</th><th>Actividad</th><th>Profe</th><th>Cupo</th><th></th></tr></thead><tbody>${db.classes.map(c=>`<tr><td>${c.day}</td><td>${c.time}</td><td>${esc(c.activity)}</td><td>${esc(c.teacher)}</td><td>${c.capacity}</td><td class="right"><button class="btn ghost" data-editclass="${c.id}">Editar</button> <button class="btn bad" data-toggleclass="${c.id}">${c.active?'Ocultar':'Activar'}</button></td></tr>`).join('')}</tbody></table></div>`,
+capacity:()=>`<div class="sectionhead">
+  <div>
+    <div class="eyebrow">Cupos</div>
+    <h2>Cupos por clase</h2>
+  </div>
+</div>
+
+<div class="schedule">
+${db.classes.filter(c=>c.active).map(c=>{
+  let n=countClass(c.id);
+
+  return `
+    <div class="classrow">
+      <div class="time">${c.time}</div>
+
+      <div>
+        <b>${c.day} · ${esc(c.activity)}</b>
+        <div class="muted">
+          ${esc(c.teacher)} · ${n}/${c.capacity}
+        </div>
+
+        <div class="progress" style="margin-top:8px">
+          <span style="width:${Math.min(100,n/c.capacity*100)}%"></span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="badge ${n>=c.capacity?'bad':'ok'}">
+          ${n>=c.capacity?'Lleno':c.capacity-n+' libres'}
+        </span>
+
+        <button class="btn soft" data-viewstudents="${c.id}">
+          Ver alumnas
+        </button>
+      </div>
+    </div>
+  `;
+}).join('')}
+</div>`, manage:()=>`<div class="sectionhead"><div><div class="eyebrow">Horarios</div><h2>Gestionar horarios</h2></div><button class="btn primary" id="newClass">Nueva clase</button></div><div class="tablewrap"><table><thead><tr><th>Día</th><th>Hora</th><th>Actividad</th><th>Profe</th><th>Cupo</th><th></th></tr></thead><tbody>${db.classes.map(c=>`<tr><td>${c.day}</td><td>${c.time}</td><td>${esc(c.activity)}</td><td>${esc(c.teacher)}</td><td>${c.capacity}</td><td class="right"><button class="btn ghost" data-editclass="${c.id}">Editar</button> <button class="btn bad" data-toggleclass="${c.id}">${c.active?'Ocultar':'Activar'}</button></td></tr>`).join('')}</tbody></table></div>`,
  students:()=>`<div class="sectionhead"><div><div class="eyebrow">Alumnas</div><h2>Alumnas registradas</h2></div></div><div class="tablewrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>WhatsApp</th><th>Abono</th><th>Créditos</th></tr></thead><tbody>${db.users.filter(u=>u.role==='student').map(u=>`<tr><td>${esc(u.name)} ${esc(u.last||'')}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'')}</td><td>${esc(u.plan||'—')}</td><td>${u.credits||0}</td></tr>`).join('')}</tbody></table></div>`,
  studio:()=>`<div class="sectionhead"><div><div class="eyebrow">Configuración</div><h2>Datos del estudio</h2></div></div><div class="card"><form class="form" id="studioForm"><div class="grid g2"><label>Titular<input id="stOwner" value="${esc(db.studio.owner)}"></label><label>Alias<input id="stAlias" value="${esc(db.studio.alias)}"></label><label>CBU<input id="stCbu" value="${esc(db.studio.cbu)}"></label><label>WhatsApp<input id="stWa" value="${esc(db.studio.whatsapp)}"></label><label>Instagram<input id="stIg" value="${esc(db.studio.instagram)}"></label><label>Dirección<input id="stAddr" value="${esc(db.studio.address)}"></label></div><button class="btn primary">Guardar cambios</button></form></div>`,
  scan:()=>scanPage('Escanear QR'),
