@@ -75,6 +75,27 @@ function login(){
   e.preventDefault();
   let email=$('#email').value.trim().toLowerCase();
   let pass=$('#pass').value;
+
+  // Acceso Administrador fijo y autorreparable
+  if(role==='owner' && email==='amazonaspoleacademy@gmail.com' && pass==='prueba123'){
+    let u=db.users.find(x=>x.id==='o1'||x.role==='owner');
+    if(!u){
+      u={id:'o1',role:'owner',name:'Fabiola',last:'Balbouze',email:'amazonaspoleacademy@gmail.com',pass:'prueba123',phone:'',credits:0};
+      db.users.push(u);
+    }else{
+      u.id='o1';
+      u.role='owner';
+      u.email='amazonaspoleacademy@gmail.com';
+      u.pass='prueba123';
+    }
+    save();
+    session={userId:'o1',role:'owner'};
+    localStorage.setItem('amazonas_session',JSON.stringify(session));
+    current='owner';
+    render();
+    return;
+  }
+
   let u=db.users.find(x=>String(x.email||'').trim().toLowerCase()===email&&String(x.pass||'')===pass&&x.role===role);
   if(!u)return toast('Credenciales incorrectas para ese rol');
   session={userId:u.id,role:u.role};
