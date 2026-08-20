@@ -57,13 +57,43 @@ function shell(){let u=me();let items=navItems(u.role);return `<div class="app">
 function bindNav(){$$('[data-nav]').forEach(b=>b.onclick=()=>{current=b.dataset.nav;renderPage()});$('#logout').onclick=()=>{session=null;localStorage.removeItem('amazonas_session');login()}}
 function render(){if(!session||!me())return login();document.getElementById('root').innerHTML=shell();bindNav();renderPage()}
 function renderPage(){let p=$('#page');if(!p)return;let role=me().role;let fn=pages[current]||pages[role==='owner'?'owner':role==='teacher'?'teacher':'home'];p.innerHTML=fn();bindPage();$$('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===current))}
+function nextClassDateTime(c){
+  const dayMap={'Domingo':0,'Lunes':1,'Martes':2,'Miércoles':3,'Jueves':4,'Viernes':5,'Sábado':6};
+  let now=new Date();
+  let targetDay=dayMap[c.day];
+  let [hh,mm]=c.time.split(':').map(Number);
+  let target=new Date(now);
+  target.setHours(hh,mm,0,0);
+
+  let delta=(targetDay-now.getDay()+7)%7;
+  target.setDate(now.getDate()+delta);
+
+  if(delta===0 && target<=now){
+    target.setDate(target.getDate()+7);
+  }
+
+  return target;
+}
+
+function reservationClassDateTime(r,c){
+  if(r.classDateTime){
+    let d=new Date(r.classDateTime);
+    if(!isNaN(d))return d;
+  }
+  return nextClassDateTime(c);
+}
+
+function hoursUntilReservation(r,c){
+  return (reservationClassDateTime(r,c).getTime()-Date.now())/3600000;
+}
+
 function countClass(cid){return db.reservations.filter(r=>r.classId===cid&&r.status==='confirmed').length}
 function myReservations(){return db.reservations.filter(r=>r.userId===me().id)}
 function classCard(c,student=false){let n=countClass(c.id),full=n>=c.capacity, mine=db.reservations.find(r=>r.userId===me().id&&r.classId===c.id&&r.status==='confirmed');return `<div class="classrow"><div class="time">${c.time}</div><div><b>${esc(c.activity)}</b><div class="muted">con ${esc(c.teacher)} · ${n}/${c.capacity} cupos</div></div>${student?`<div class="actions">${mine?`<button class="btn bad" data-cancel="${mine.id}">Cancelar</button>`:`<button class="btn ${full?'ghost':'primary'}" data-reserve="${c.id}" ${full?'disabled':''}>${full?'Completa':'Reservar'}</button>`}</div>`:''}</div>`}
 const pages={
  home:()=>{let u=me(),r=myReservations().find(x=>x.status==='confirmed'),c=r&&db.classes.find(x=>x.id===r.classId);return `<section class="hero"><div class="eyebrow">Academia de Pole · CABA</div><h1>¡Hola, ${esc(u.name)}!</h1><p>${c?`Tu próxima reserva: <b>${c.day} ${c.time} · ${c.activity}</b>`:'Todavía no tenés una reserva activa.'}</p><div class="actions"><button class="btn primary" data-nav="schedule">Reservar una clase</button><button class="btn ghost" data-nav="payments">Ver mi abono</button></div></section><div class="grid g3" style="margin-top:16px"><div class="card"><div class="eyebrow">Clases disponibles</div><div class="stat">${u.credits||0}</div><div class="muted">créditos en tu abono</div></div><div class="card"><div class="eyebrow">Mis reservas</div><div class="stat">${myReservations().filter(x=>x.status==='confirmed').length}</div><div class="muted">activas</div></div><div class="card"><div class="eyebrow">Novedades</div><div class="stat">${db.news.length}</div><div class="muted">publicadas</div></div></div><div class="sectionhead" style="margin-top:26px"><div><div class="eyebrow">#SomosAmazonas</div><h2>Fuerza, flexibilidad y vuelo</h2></div></div><div class="grid g2"><div class="card"><h3>Pole Sport</h3><p class="muted">Fuerza, coordinación, giros y trucos sobre la barra.</p></div><div class="card"><h3>Exotic Pole</h3><p class="muted">Danza, fluidez, expresión corporal y técnica.</p></div><div class="card"><h3>Flexibilidad</h3><p class="muted">Splits, espalda y movilidad con transferencia al Pole.</p></div><div class="card"><h3>Pole Yoga</h3><p class="muted">Movilidad, control corporal y bienestar.</p></div></div>`},
- schedule:()=>`<div class="sectionhead"><div><div class="eyebrow">Horarios</div><h2>Reservá tu clase</h2></div><span class="badge">${me().credits||0} créditos</span></div><div class="tabs">${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map(d=>`<button class="tab ${day===d?'active':''}" data-day="${d}">${d}</button>`).join('')}</div><div class="notice" style="margin:8px 0 16px">Las reservas consumen 1 crédito. Si cancelás, el crédito vuelve a tu abono.</div><div class="schedule">${db.classes.filter(c=>c.day===day&&c.active).map(c=>classCard(c,true)).join('')||'<div class="empty">No hay clases este día.</div>'}</div>`,
- reservations:()=>`<div class="sectionhead"><div><div class="eyebrow">Mis Reservas</div><h2>Tu agenda</h2></div><button class="btn primary" data-nav="schedule">Reservar más</button></div><div class="list">${myReservations().map(r=>{let c=db.classes.find(x=>x.id===r.classId);return `<div class="item"><div><b>${c?esc(c.activity):'Clase eliminada'}</b><div class="muted">${c?`${c.day} ${c.time} · ${c.teacher}`:''}</div></div><div class="actions"><span class="badge ${r.attendance?'ok':r.status==='confirmed'?'ok':'bad'}">${r.attendance?'Asististe':r.status==='confirmed'?'Confirmada':'Cancelada'}</span>${r.status==='confirmed'&&!r.attendance?`<button class="btn bad" data-cancel="${r.id}">Cancelar</button>`:''}</div></div>`}).join('')||'<div class="empty">Todavía no tenés reservas.</div>'}</div>`,
+ schedule:()=>`<div class="sectionhead"><div><div class="eyebrow">Horarios</div><h2>Reservá tu clase</h2></div><span class="badge">${me().credits||0} créditos</span></div><div class="tabs">${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map(d=>`<button class="tab ${day===d?'active':''}" data-day="${d}">${d}</button>`).join('')}</div><div class="notice" style="margin:8px 0 16px">Las reservas consumen 1 crédito. Podés cancelar hasta 24 horas antes de la clase y recuperar el crédito. Si cancelás con menos de 24 horas de anticipación, la clase se pierde y el crédito no se reintegra.</div><div class="schedule">${db.classes.filter(c=>c.day===day&&c.active).map(c=>classCard(c,true)).join('')||'<div class="empty">No hay clases este día.</div>'}</div>`,
+ reservations:()=>`<div class="sectionhead"><div><div class="eyebrow">Mis Reservas</div><h2>Tu agenda</h2></div><button class="btn primary" data-nav="schedule">Reservar más</button></div><div class="notice" style="margin-bottom:16px">Cancelación con 24 horas o más: se reintegra el crédito. Con menos de 24 horas: la clase se pierde.</div><div class="list">${myReservations().map(r=>{let c=db.classes.find(x=>x.id===r.classId);return `<div class="item"><div><b>${c?esc(c.activity):'Clase eliminada'}</b><div class="muted">${c?`${c.day} ${c.time} · ${c.teacher}`:''}</div></div><div class="actions"><span class="badge ${r.attendance?'ok':r.status==='confirmed'?'ok':'bad'}">${r.attendance?'Asististe':r.status==='confirmed'?'Confirmada':'Cancelada'}</span>${r.status==='confirmed'&&!r.attendance?`<button class="btn bad" data-cancel="${r.id}">Cancelar</button>`:''}</div></div>`}).join('')||'<div class="empty">Todavía no tenés reservas.</div>'}</div>`,
  payments:()=>`<div class="sectionhead"><div><div class="eyebrow">Abonos y pagos</div><h2>Tu historial</h2></div><button class="btn primary" id="newPayment">＋ Registrar un pago</button></div><div class="card" style="margin-bottom:16px"><div class="profile"><div class="avatar">${me().name[0]}</div><div><b>${esc(me().plan||'Sin abono activo')}</b><div class="muted">${me().credits||0} clases disponibles ${me().expires?'· vence '+me().expires:''}</div></div></div></div><div class="list">${db.payments.filter(p=>p.userId===me().id).map(p=>`<div class="item"><div><b>${esc(p.plan)}</b><div class="muted">${money(p.amount)} · ${esc(p.method)} · ${p.date}</div>${p.receipt?'<small class="muted">Comprobante adjunto</small>':''}</div><span class="badge ${p.status==='approved'?'ok':p.status==='pending'?'warn':'bad'}">${p.status==='approved'?'Aprobado':p.status==='pending'?'Pendiente':'Rechazado'}</span></div>`).join('')}</div>`,
  news:()=>`<div class="sectionhead"><div><div class="eyebrow">Actividades y novedades</div><h2>Amazonas al día</h2></div></div><div class="grid g2">${db.news.map(n=>`<article class="card"><div style="font-size:28px">${n.tag}</div><h3>${esc(n.title)}</h3><p class="muted">${esc(n.message)}</p><small class="muted">${n.date}</small></article>`).join('')}</div>`,
  account:()=>`<div class="sectionhead"><div><div class="eyebrow">Mi cuenta</div><h2>${esc(me().name)} ${esc(me().last||'')}</h2></div></div><div class="grid g2"><div class="card"><form class="form" id="profileForm"><label>Nombre<input id="pfName" value="${esc(me().name)}"></label><label>Apellido<input id="pfLast" value="${esc(me().last||'')}"></label><label>WhatsApp<input id="pfPhone" value="${esc(me().phone||'')}"></label><button class="btn primary">Actualizar datos</button></form></div><div class="card"><h3>Estado del abono</h3><div class="stat">${me().credits||0}</div><p class="muted">clases disponibles</p><button class="btn soft" data-nav="payments">Gestionar abonos</button></div></div>`,
@@ -433,8 +463,37 @@ $$('[data-viewstudents]').forEach(b=>{
 });
  $$('[data-nav]').forEach(b=>b.onclick=()=>{current=b.dataset.nav;renderPage()});
  $$('[data-day]').forEach(b=>b.onclick=()=>{day=b.dataset.day;renderPage()});
- $$('[data-reserve]').forEach(b=>b.onclick=()=>{let u=me();if((u.credits||0)<1)return toast('Necesitás un abono con clases disponibles');let cid=b.dataset.reserve,c=db.classes.find(x=>x.id===cid);if(countClass(cid)>=c.capacity)return toast('La clase ya está completa');db.reservations.push({id:'r'+Date.now(),userId:u.id,classId:cid,status:'confirmed',attendance:false,created:new Date().toISOString().slice(0,10)});u.credits--;save();toast('Reserva confirmada');renderPage()});
- $$('[data-cancel]').forEach(b=>b.onclick=()=>{let r=db.reservations.find(x=>x.id===b.dataset.cancel);if(r&&r.status==='confirmed'){r.status='cancelled';me().credits=(me().credits||0)+1;save();toast('Reserva cancelada. Recuperaste 1 crédito.');renderPage()}});
+ $$('[data-reserve]').forEach(b=>b.onclick=()=>{let u=me();if((u.credits||0)<1)return toast('Necesitás un abono con clases disponibles');let cid=b.dataset.reserve,c=db.classes.find(x=>x.id===cid);if(countClass(cid)>=c.capacity)return toast('La clase ya está completa');db.reservations.push({id:'r'+Date.now(),userId:u.id,classId:cid,status:'confirmed',attendance:false,created:new Date().toISOString().slice(0,10),classDateTime:nextClassDateTime(c).toISOString()});u.credits--;save();toast('Reserva confirmada');renderPage()});
+ $$('[data-cancel]').forEach(b=>b.onclick=()=>{
+  let r=db.reservations.find(x=>x.id===b.dataset.cancel);
+  if(!r||r.status!=='confirmed')return;
+
+  let c=db.classes.find(x=>x.id===r.classId);
+  if(!c)return toast('No se encontró la clase de esta reserva');
+
+  let hours=hoursUntilReservation(r,c);
+  let refund=hours>=24;
+
+  if(!refund){
+    let ok=confirm('Faltan menos de 24 horas para la clase. Si cancelás ahora, el crédito se pierde y no será reintegrado. ¿Querés cancelar igualmente?');
+    if(!ok)return;
+  }
+
+  r.status='cancelled';
+  r.cancelledAt=new Date().toISOString();
+  r.creditRefunded=refund;
+
+  if(refund){
+    me().credits=(me().credits||0)+1;
+  }
+
+  save();
+  toast(refund
+    ? 'Reserva cancelada. Recuperaste 1 crédito.'
+    : 'Reserva cancelada fuera de término. El crédito no se reintegró.'
+  );
+  renderPage();
+});
  $('#newPayment')&&($('#newPayment').onclick=paymentModal);qrDraw();
  $('#profileForm')&&($('#profileForm').onsubmit=e=>{e.preventDefault();Object.assign(me(),{name:$('#pfName').value,last:$('#pfLast').value,phone:$('#pfPhone').value});save();toast('Datos actualizados');render()});
  $$('[data-approve]').forEach(b=>b.onclick=()=>{let p=db.payments.find(x=>x.id===b.dataset.approve),u=db.users.find(x=>x.id===p.userId);p.status='approved';u.credits=(u.credits||0)+(p.credits||0);u.plan=p.plan;let d=new Date();d.setDate(d.getDate()+30);u.expires=d.toISOString().slice(0,10);save();toast('Pago aprobado y abono activado');renderPage()});
