@@ -355,7 +355,11 @@ function viewStudentModal(userId){
   };
 }
 
-function bindPage(){$$('[data-viewstudents]').forEach(b=>{
+function bindPage(){
+ $('#newStudent')&&($('#newStudent').onclick=()=>studentModal(null));
+ $$('[data-viewstudent]').forEach(b=>b.onclick=()=>viewStudentModal(b.dataset.viewstudent));
+ $$('[data-editstudent]').forEach(b=>b.onclick=()=>studentModal(db.users.find(u=>u.id===b.dataset.editstudent)));
+$$('[data-viewstudents]').forEach(b=>{
   b.onclick=()=>classStudentsModal(b.dataset.viewstudents);
 });
  $$('[data-nav]').forEach(b=>b.onclick=()=>{current=b.dataset.nav;renderPage()});
