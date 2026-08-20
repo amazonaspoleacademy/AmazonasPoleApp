@@ -65,7 +65,7 @@ const pages={
  credential:()=>`<div class="sectionhead"><div><div class="eyebrow">Tu credencial</div><h2>Mostrala para registrar tu asistencia</h2></div></div><div class="card" style="max-width:480px;text-align:center"><div id="qr" class="qrbox" style="margin:10px auto 18px"></div><h3>${esc(me().name)} ${esc(me().last||'')}</h3><p class="muted">ID: ${me().id} · ${me().credits||0} clases disponibles</p><div class="notice">Código de asistencia: <b>${me().id.toUpperCase()}-${checksum(me().id)}</b></div></div>`,
  transfer:()=>`<div class="sectionhead"><div><div class="eyebrow">Transferencia</div><h2>Datos de pago</h2></div></div><div class="card" style="max-width:650px"><div class="list"><div class="item"><span>Alias</span><b>${esc(db.studio.alias)}</b></div><div class="item"><span>CBU</span><b>${esc(db.studio.cbu)}</b></div><div class="item"><span>Titular</span><b>${esc(db.studio.owner)}</b></div></div><p class="notice" style="margin-top:14px">Después de transferir, registrá el pago en <b>Abonos y Pagos</b> y adjuntá el comprobante.</p></div>`,
  owner:()=>`<div class="sectionhead"><div><div class="eyebrow">Panel Dueña</div><h2>Buen día, ${esc(me().name)} ✨</h2></div></div><div class="grid g3"><div class="card"><div class="stat">${db.payments.filter(p=>p.status==='pending').length}</div><div class="muted">Pagos por aprobar</div></div><div class="card"><div class="stat">${db.reservations.filter(r=>r.status==='confirmed').length}</div><div class="muted">Reservas activas</div></div><div class="card"><div class="stat">${db.users.filter(u=>u.role==='student').length}</div><div class="muted">Alumnas registradas</div></div></div><div class="grid g2" style="margin-top:16px">${[['approve','Aprobar pagos','Validá transferencias y activá abonos'],['capacity','Cupos por clase','Reservas y disponibilidad'],['manage','Gestionar horarios','Clases, profes y cupos'],['scan','Escanear QR','Registrar asistencia'],['students','Alumnas','Cuentas y abonos'],['publish','Enviar novedad','Avisos a las alumnas']].map(x=>`<button class="card" data-nav="${x[0]}" style="text-align:left;cursor:pointer"><h3>${x[1]}</h3><p class="muted">${x[2]}</p></button>`).join('')}</div>`,
- approve:()=>`<div class="sectionhead"><div><div class="eyebrow">Administración</div><h2>Aprobar pagos</h2></div></div><div class="list">${db.payments.filter(p=>p.status==='pending').map(p=>{let u=db.users.find(x=>x.id===p.userId);return `<div class="item"><div><b>${esc(u?.name||'Alumna')} ${esc(u?.last||'')}</b><div>${esc(p.plan)} · ${money(p.amount)} · ${esc(p.method)}</div>${p.receipt?`<small><a href="${p.receipt}" target="_blank">Ver comprobante</a></small>`:'<small class="muted">Sin comprobante</small>'}</div><div class="actions"><button class="btn ok" data-approve="${p.id}">Aprobar</button><button class="btn bad" data-reject="${p.id}">Rechazar</button></div></div>`}).join('')||'<div class="empty">No hay pagos pendientes.</div>'}</div>`,
+ approve:()=>`<div class="sectionhead"><div><div class="eyebrow">Administración</div><h2>Aprobar pagos</h2></div></div><div class="list">${db.payments.filter(p=>p.status==='pending').map(p=>{let u=db.users.find(x=>x.id===p.userId);return `<div class="item"><div><b>${esc(u?.name||'Alumna')} ${esc(u?.last||'')}</b><div>${esc(p.plan)} · ${money(p.amount)} · ${esc(p.method)}</div>${p.receipt?`<small><button class="btn soft" type="button" data-viewreceipt="${p.id}">Ver comprobante</button></small>`:'<small class="muted">Sin comprobante</small>'}</div><div class="actions"><button class="btn ok" data-approve="${p.id}">Aprobar</button><button class="btn bad" data-reject="${p.id}">Rechazar</button></div></div>`}).join('')||'<div class="empty">No hay pagos pendientes.</div>'}</div>`,
 capacity:()=>`<div class="sectionhead">
   <div>
     <div class="eyebrow">Cupos</div>
@@ -119,7 +119,70 @@ function scanPage(title){return `<div class="sectionhead"><div><div class="eyebr
 function checksum(s){let n=0;for(let c of s)n=(n*31+c.charCodeAt(0))%997;return String(n).padStart(3,'0')}
 function qrDraw(){let q=$('#qr');if(!q)return;let token=me().id+'-'+checksum(me().id),bits=[];let seedN=[...token].reduce((a,c)=>a+c.charCodeAt(0),0);for(let i=0;i<441;i++){seedN=(seedN*9301+49297)%233280;bits.push(seedN/233280>.5)};for(let y=0;y<21;y++)for(let x=0;x<21;x++){let i=document.createElement('i');let finder=(x<7&&y<7)||(x>13&&y<7)||(x<7&&y>13);let on=finder?((x%6===0||y%6===0||((x%6>=2&&x%6<=4)&&(y%6>=2&&y%6<=4)))):bits[y*21+x];if(on)i.className='on';q.append(i)}}
 function modal(html){let m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modalbox">${html}</div>`;m.onclick=e=>{if(e.target===m)m.remove()};document.body.append(m);return m}
-function paymentModal(){let m=modal(`<div class="sectionhead"><div><div class="eyebrow">Nuevo pago</div><h2>Registrar un pago</h2></div><button class="btn ghost" id="closeM">×</button></div><form class="form" id="payForm"><label>Abono<select id="payPlan">${db.plans.map((p,i)=>`<option value="${i}">${p.name} · ${money(p.amount)}</option>`).join('')}</select></label><label>Método<select id="payMethod"><option>Transferencia</option><option>Efectivo</option></select></label><label>Comprobante (imagen o PDF)<input id="receipt" type="file" accept="image/*,application/pdf"></label><button class="btn primary">Enviar para aprobación</button></form>`);m.querySelector('#closeM').onclick=()=>m.remove();m.querySelector('#payForm').onsubmit=e=>{e.preventDefault();let p=db.plans[+m.querySelector('#payPlan').value],file=m.querySelector('#receipt').files[0];let finish=receipt=>{db.payments.unshift({id:'p'+Date.now(),userId:me().id,plan:p.name,amount:p.amount,method:m.querySelector('#payMethod').value,date:new Date().toISOString().slice(0,10),status:'pending',receipt,credits:p.credits});save();m.remove();toast('Pago registrado. Queda pendiente de aprobación.');renderPage()};if(file){if(file.size>900000)return toast('Para esta demo, el comprobante debe pesar menos de 900 KB');let rd=new FileReader();rd.onload=()=>finish(rd.result);rd.readAsDataURL(file)}else finish('')}}
+function paymentModal(){
+  let m=modal(`<div class="sectionhead"><div><div class="eyebrow">Nuevo pago</div><h2>Registrar un pago</h2></div><button class="btn ghost" id="closeM">×</button></div><form class="form" id="payForm"><label>Abono<select id="payPlan">${db.plans.map((p,i)=>`<option value="${i}">${p.name} · ${money(p.amount)}</option>`).join('')}</select></label><label>Método<select id="payMethod"><option>Transferencia</option><option>Efectivo</option></select></label><label>Comprobante (imagen o PDF)<input id="receipt" type="file" accept="image/*,application/pdf"></label><div class="notice">Para transferencias, el comprobante es obligatorio. En esta versión debe pesar menos de 700 KB.</div><button class="btn primary">Enviar para aprobación</button></form>`);
+  m.querySelector('#closeM').onclick=()=>m.remove();
+  m.querySelector('#payForm').onsubmit=e=>{
+    e.preventDefault();
+    let p=db.plans[+m.querySelector('#payPlan').value];
+    let method=m.querySelector('#payMethod').value;
+    let file=m.querySelector('#receipt').files[0];
+
+    if(method==='Transferencia'&&!file)return toast('Adjuntá el comprobante de la transferencia');
+
+    let finish=receipt=>{
+      let payment={id:'p'+Date.now(),userId:me().id,plan:p.name,amount:p.amount,method,date:new Date().toISOString().slice(0,10),status:'pending',receipt,credits:p.credits};
+      db.payments.unshift(payment);
+      try{
+        save();
+        let persisted=JSON.parse(localStorage.getItem(LS)||'{}');
+        let saved=(persisted.payments||[]).find(x=>x.id===payment.id);
+        if(!saved||(receipt&&!saved.receipt)){
+          db.payments=db.payments.filter(x=>x.id!==payment.id);
+          save();
+          return toast('No se pudo guardar el comprobante. Probá con un archivo más liviano.');
+        }
+        m.remove();
+        toast('Pago y comprobante registrados. Quedan pendientes de aprobación.');
+        renderPage();
+      }catch(err){
+        db.payments=db.payments.filter(x=>x.id!==payment.id);
+        try{save()}catch(e){}
+        toast('No se pudo guardar el comprobante. Probá con un archivo más liviano.');
+      }
+    };
+
+    if(file){
+      if(file.size>700000)return toast('El comprobante debe pesar menos de 700 KB en esta versión.');
+      let rd=new FileReader();
+      rd.onerror=()=>toast('No se pudo leer el comprobante');
+      rd.onload=()=>finish(rd.result);
+      rd.readAsDataURL(file);
+    }else finish('');
+  };
+}
+
+function receiptModal(paymentId){
+  let p=db.payments.find(x=>x.id===paymentId);
+  if(!p||!p.receipt)return toast('No hay comprobante disponible');
+
+  let isPdf=String(p.receipt).startsWith('data:application/pdf');
+  let m=modal(`
+    <div class="sectionhead">
+      <div><div class="eyebrow">Comprobante</div><h2>${esc(p.plan)}</h2></div>
+      <button class="btn ghost" id="closeReceipt">×</button>
+    </div>
+    ${isPdf
+      ? `<iframe src="${p.receipt}" style="width:100%;height:65vh;border:1px solid var(--line);border-radius:12px"></iframe>`
+      : `<img src="${p.receipt}" alt="Comprobante" style="display:block;max-width:100%;max-height:70vh;margin:auto;border-radius:12px;border:1px solid var(--line)">`
+    }
+    <div class="actions" style="margin-top:14px">
+      <a class="btn soft" href="${p.receipt}" target="_blank" rel="noopener">Abrir en otra pestaña</a>
+    </div>
+  `);
+  m.querySelector('#closeReceipt').onclick=()=>m.remove();
+}
+
 function classModal(c){let editing=!!c,m=modal(`<div class="sectionhead"><div><div class="eyebrow">Horario</div><h2>${editing?'Editar':'Nueva'} clase</h2></div><button class="btn ghost" id="closeM">×</button></div><form class="form" id="classForm"><label>Día<select id="cDay">${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map(d=>`<option ${c?.day===d?'selected':''}>${d}</option>`).join('')}</select></label><label>Hora<input id="cTime" type="time" value="${c?.time||'18:30'}" required></label><label>Actividad<input id="cAct" value="${esc(c?.activity||'Pole Sport')}" required></label><label>Profesora<input id="cTeacher" value="${esc(c?.teacher||'')}" required></label><label>Cupo<input id="cCap" type="number" min="1" max="30" value="${c?.capacity||6}" required></label><button class="btn primary">Guardar</button></form>`);m.querySelector('#closeM').onclick=()=>m.remove();m.querySelector('#classForm').onsubmit=e=>{e.preventDefault();let obj={day:m.querySelector('#cDay').value,time:m.querySelector('#cTime').value,activity:m.querySelector('#cAct').value,teacher:m.querySelector('#cTeacher').value,capacity:+m.querySelector('#cCap').value,active:true};if(editing)Object.assign(c,obj);else db.classes.push({id:'c'+Date.now(),...obj});save();m.remove();toast('Horario guardado');renderPage()}}
 function classStudentsModal(classId){
   let c=db.classes.find(x=>x.id===classId);
@@ -356,6 +419,7 @@ function viewStudentModal(userId){
 }
 
 function bindPage(){
+ $$('[data-viewreceipt]').forEach(b=>b.onclick=()=>receiptModal(b.dataset.viewreceipt));
  $('#newStudent')&&($('#newStudent').onclick=()=>studentModal(null));
  $$('[data-viewstudent]').forEach(b=>b.onclick=()=>viewStudentModal(b.dataset.viewstudent));
  $$('[data-editstudent]').forEach(b=>b.onclick=()=>studentModal(db.users.find(u=>u.id===b.dataset.editstudent)));
