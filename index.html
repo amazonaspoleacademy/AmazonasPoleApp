@@ -122,7 +122,72 @@ function qrDraw(){let q=$('#qr');if(!q)return;let token=me().id+'-'+checksum(me(
 function modal(html){let m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modalbox">${html}</div>`;m.onclick=e=>{if(e.target===m)m.remove()};document.body.append(m);return m}
 function paymentModal(){let m=modal(`<div class="sectionhead"><div><div class="eyebrow">Nuevo pago</div><h2>Registrar un pago</h2></div><button class="btn ghost" id="closeM">×</button></div><form class="form" id="payForm"><label>Abono<select id="payPlan">${db.plans.map((p,i)=>`<option value="${i}">${p.name} · ${money(p.amount)}</option>`).join('')}</select></label><label>Método<select id="payMethod"><option>Transferencia</option><option>Efectivo</option></select></label><label>Comprobante (imagen o PDF)<input id="receipt" type="file" accept="image/*,application/pdf"></label><button class="btn primary">Enviar para aprobación</button></form>`);m.querySelector('#closeM').onclick=()=>m.remove();m.querySelector('#payForm').onsubmit=e=>{e.preventDefault();let p=db.plans[+m.querySelector('#payPlan').value],file=m.querySelector('#receipt').files[0];let finish=receipt=>{db.payments.unshift({id:'p'+Date.now(),userId:me().id,plan:p.name,amount:p.amount,method:m.querySelector('#payMethod').value,date:new Date().toISOString().slice(0,10),status:'pending',receipt,credits:p.credits});save();m.remove();toast('Pago registrado. Queda pendiente de aprobación.');renderPage()};if(file){if(file.size>900000)return toast('Para esta demo, el comprobante debe pesar menos de 900 KB');let rd=new FileReader();rd.onload=()=>finish(rd.result);rd.readAsDataURL(file)}else finish('')}}
 function classModal(c){let editing=!!c,m=modal(`<div class="sectionhead"><div><div class="eyebrow">Horario</div><h2>${editing?'Editar':'Nueva'} clase</h2></div><button class="btn ghost" id="closeM">×</button></div><form class="form" id="classForm"><label>Día<select id="cDay">${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map(d=>`<option ${c?.day===d?'selected':''}>${d}</option>`).join('')}</select></label><label>Hora<input id="cTime" type="time" value="${c?.time||'18:30'}" required></label><label>Actividad<input id="cAct" value="${esc(c?.activity||'Pole Sport')}" required></label><label>Profesora<input id="cTeacher" value="${esc(c?.teacher||'')}" required></label><label>Cupo<input id="cCap" type="number" min="1" max="30" value="${c?.capacity||6}" required></label><button class="btn primary">Guardar</button></form>`);m.querySelector('#closeM').onclick=()=>m.remove();m.querySelector('#classForm').onsubmit=e=>{e.preventDefault();let obj={day:m.querySelector('#cDay').value,time:m.querySelector('#cTime').value,activity:m.querySelector('#cAct').value,teacher:m.querySelector('#cTeacher').value,capacity:+m.querySelector('#cCap').value,active:true};if(editing)Object.assign(c,obj);else db.classes.push({id:'c'+Date.now(),...obj});save();m.remove();toast('Horario guardado');renderPage()}}
-function bindPage(){$$('[data-viewstudents]').forEach(b=>{
+function classModal(c){
+   ...
+}
+
+function classStudentsModal(classId){
+  let c=db.classes.find(x=>x.id===classId);
+  if(!c)return;
+
+  let reservations=db.reservations.filter(
+    r=>r.classId===classId && r.status==='confirmed'
+  );
+
+  let students=reservations.map(r=>{
+    let u=db.users.find(x=>x.id===r.userId);
+    return {reservation:r,user:u};
+  }).filter(x=>x.user);
+
+  let m=modal(`
+    <div class="sectionhead">
+      <div>
+        <div class="eyebrow">${c.day} · ${c.time}</div>
+        <h2>${esc(c.activity)}</h2>
+        <div class="muted">
+          ${esc(c.teacher)} · ${students.length}/${c.capacity} lugares ocupados
+        </div>
+      </div>
+
+      <button class="btn ghost" id="closeStudents">×</button>
+    </div>
+
+    ${
+      students.length
+      ? `<div class="list">
+          ${students.map(({user,reservation})=>`
+            <div class="item">
+              <div class="profile">
+                <div class="avatar">${esc(user.name.charAt(0))}</div>
+
+                <div>
+                  <b>${esc(user.name)} ${esc(user.last||'')}</b>
+                  <div class="muted">${esc(user.email||'')}</div>
+                  ${user.phone ? `<div class="muted">${esc(user.phone)}</div>` : ''}
+                </div>
+              </div>
+
+              <span class="badge ${reservation.attendance?'ok':'warn'}">
+                ${reservation.attendance?'Asistió':'Reservada'}
+              </span>
+            </div>
+          `).join('')}
+        </div>`
+      : `<div class="empty">
+           Todavía no hay alumnas anotadas en esta clase.
+         </div>`
+    }
+
+    <div class="notice" style="margin-top:16px">
+      <b>${students.length}</b> de <b>${c.capacity}</b> lugares ocupados ·
+      <b>${c.capacity-students.length}</b> disponibles.
+    </div>
+  `);
+
+  m.querySelector('#closeStudents').onclick=()=>m.remove();
+}
+
+function bindPage(){function bindPage(){$$('[data-viewstudents]').forEach(b=>{
   b.onclick=()=>classStudentsModal(b.dataset.viewstudents);
 });
  $$('[data-nav]').forEach(b=>b.onclick=()=>{current=b.dataset.nav;renderPage()});
